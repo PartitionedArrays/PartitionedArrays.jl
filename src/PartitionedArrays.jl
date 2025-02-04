@@ -13,6 +13,7 @@ using BlockArrays
 
 export length_to_ptrs!
 export rewind_ptrs!
+export jagged_range
 export jagged_array
 export GenericJaggedArray
 export JaggedArray
@@ -24,6 +25,12 @@ export compresscoo
 export indextype
 export sparse_matrix
 export sparse_matrix!
+export index_array
+export pointer_array
+export halfperm
+export halfperm!
+export symbolic_halfperm
+export symbolic_halfperm!
 include("sparse_utils.jl")
 
 export linear_indices
@@ -169,9 +176,17 @@ export spmv!
 export spmtv!
 export spmm
 export spmm!
+export spmmm
+export spmmm!
 export spmtm
 export spmtm!
+export spmtmm
+export spmtmm!
 export centralize
+export explicit_transpose
+export explicit_transpose!
+export add
+export add!
 include("p_sparse_matrix.jl")
 
 export BRange
@@ -193,6 +208,16 @@ export node_coordinates_unit_cube
 export nullspace_linear_elasticity
 export nullspace_linear_elasticity!
 export near_nullspace_linear_elasticity
+export prolongator
 include("gallery.jl")
+
+export add
+export subtract
+export mul
+export matmul
+export matmul!
+export rap
+export rap!
+include("sequential_implementations.jl")
 
 end # module

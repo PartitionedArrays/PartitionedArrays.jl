@@ -465,10 +465,9 @@ function sparse_matrix!(A,V,K;reset=true)
     A
 end
 
-
 # Notation
 # csrr: csr with repeated and unsorted columns
-# csru: csr witu unsorted columns
+# csru: csr with unsorted columns
 # csc: csc with sorted columns
 
 struct SparseMatrixCSRR{Tv,Ti,A}
@@ -689,3 +688,308 @@ function spmv_csc!(b,x,colptr_A,rowval_A,nzval_A)
     b
 end
 
+
+################ NEW ################
+# Variants for findnz() that only allocates memory for the conversion of the pointer array to an index array.
+# Only use for read-only operations.
+function findnz_minimal(A::SparseMatrixCSC)
+    J = ptr_to_coo(A.colptr)
+    rowvals(A),J,nonzeros(A)
+end
+function findnz_minimal(A::SparseMatrixCSR)
+    I = ptr_to_coo(A.rowptr)
+    I,colvals(A),nonzeros(A)
+end
+
+# Behaves like findnz, but without the values.
+function find_indices(A::SparseMatrixCSC)
+    I,J,_ = findnz_minimal(A)
+    copy(I),J
+end
+function find_indices(A::SparseMatrixCSR)
+    I,J,_ = findnz_minimal(A)
+    I,copy(J)
+end
+
+# TODO Could be done without binary searches from nzindex(...), when it is known that A and C are ordered, and A is a guaranteed submatrix of C.
+function precompute_nzindex(C::AbstractSparseArray,A::AbstractSparseArray)
+    I,J,_ = findnz_minimal(A)
+    K = similar(I)
+    K .= 0
+    for (p,(i,j)) in enumerate(zip(I,J))
+        if i < 1 || j < 1
+            continue
+        end
+        K[p] = nzindex(C,i,j)
+    end
+    K
+end
+
+# General matrix expansion to a larger size, allocates new matrix with new size.
+function expand_sparse_matrix(A,m,n)
+    compresscoo(typeof(A),findnz(A)...,m,n)
+end
+
+# Expand matrix to a larger size without changing non-zero entries. 
+# Might allocate a new pointer array, but shares index and value arrays with A.
+function expand_sparse_matrix(A::SparseMatrixCSR{Bi,Tv,Ti} where {Tv, Ti},m,n) where Bi
+    p,q = size(A)
+    @assert m >= p
+    @assert n >= q
+    if m > p
+        new_rowptr = similar(A.rowptr,m+1)
+        map!(identity,new_rowptr,A.rowptr)
+        last_index = A.rowptr[end]
+        for i in p+1:m+1
+            new_rowptr[i] = last_index
+        end
+    else
+        new_rowptr = A.rowptr
+    end
+    SparseMatrixCSR{Bi}(m,n,new_rowptr,A.colval,A.nzval)
+end
+
+# Expand matrix to a larger size without changing non-zero entries. 
+# Might allocate a new pointer array, but shares index and value arrays with A.
+function expand_sparse_matrix(A::SparseMatrixCSC{Tv,Ti},m,n) where {Tv,Ti}
+    p,q = size(A)
+    @assert m >= p
+    @assert n >= q
+    if n > q
+        new_colptr = similar(A.colptr,n+1)
+        map!(identity,new_colptr,A.colptr)
+        last_index = A.colptr[end]
+        for j in q+1:n+1
+            new_colptr[j] = last_index
+        end
+    else
+        new_colptr = A.colptr
+    end
+    SparseMatrixCSC{Tv,Ti}(m,n,new_colptr,A.rowval,A.nzval)
+end
+
+# Currently not implemented by the SparseMatricesCSR package
+function Base.similar(A::SparseMatrixCSR{Bi}, m::Integer, n::Integer) where Bi
+    SparseMatrixCSR{1}(m, n, ones(eltype(A.rowptr), m+1), eltype(A.colval)[], eltype(A.nzval)[])
+end
+
+# Currently not implemented by SparseMatricesCSR
+function Base.similar(A::SparseMatrixCSR{Bi}) where Bi
+    SparseMatrixCSR{Bi}(size(A)..., copy(A.rowptr), copy(colvals(A)), similar(nonzeros(A)))
+end
+
+# Currently not implemented by the SparseMatricesCSR module
+function Base.copy(At::Transpose{Tv,SparseMatrixCSR{Bi,Tv,Ti}} where {Bi,Tv,Ti})
+    Acsc_T = copy(transpose(ascsc(At.parent))) # materialize SparseMatrixCSC transpose
+    ascsr(Acsc_T)
+end
+
+function pointer_array(A::SparseMatrixCSR)
+    A.rowptr
+end
+
+function pointer_array(A::SparseMatrixCSC)
+    A.colptr
+end
+
+function index_array(A::SparseMatrixCSR)
+    colvals(A)
+end
+
+function index_array(A::SparseMatrixCSC)
+    rowvals(A)
+end
+
+function ptr_to_coo(ptr_array)
+    K = zeros(Int32, (ptr_array[end]-1))
+    for i in 1:(length(ptr_array)-1)
+        for p in ptr_array[i]:ptr_array[i+1]-1
+            K[p] = i
+        end
+    end
+    K
+end
+
+function find_max_row_length(A::SparseMatrixCSR)
+    max_rA = 0
+    for i in 1:size(A,1)
+        l = length(nzrange(A,i))
+        max_rA = max_rA > l ? max_rA : l
+    end
+    max_rA
+end
+
+function find_max_row_length(A::JaggedArray)
+    max_rA = 0
+    for i in 1:length(A.ptrs)-1
+        l = length(jagged_range(A,i))
+        max_rA = max_rA > l ? max_rA : l
+    end
+    max_rA
+end
+
+function find_max_col_length(A::SparseMatrixCSC)
+    max_cA = 0
+    for j in 1:size(A,2)
+        l = length(nzrange(A,j))
+        max_cA = max_cA > l ? max_cA : l
+    end
+    max_cA
+end
+
+# Lazily convert CSC matrix to CSR matrix, by interpreting columnpointers as row pointers, and colvals as rowvals,
+# effectively transposing it in the process.
+function ascsr(A::SparseMatrixCSC{Tv,Ti}) where {Tv,Ti}
+    p,q = size(A)
+    SparseMatrixCSR{1}(q,p,A.colptr,rowvals(A),nonzeros(A))
+end
+
+# Lazily convert CSR matrix to CSC matrix, by interpreting rowpointers as column pointers, and rowvals as colvals,
+# effectively transposing it in the process.
+function ascsc(A::SparseMatrixCSR{Bi,Tv,Ti}) where {Bi,Tv,Ti}
+    p,q = size(A)
+    SparseMatrixCSC{Tv,Ti}(q,p,A.rowptr,colvals(A),nonzeros(A))
+end
+
+function halfperm(A::SparseMatrixCSR{Bi,Tv,Ti}) where {Bi,Tv,Ti}
+    q = size(A,2)
+    JA,VA = colvals(A),nonzeros(A)
+    IAt,JAt,VAt = similar(A.rowptr,q+1),similar(JA),similar(VA)
+    halfperm!(IAt,JAt,VAt,A)
+end
+
+# transpose A into At using vectors IAt,JAt, and VAt
+function halfperm!(IAt,JAt,VAt,A::SparseMatrixCSR{Bi,Tv,Ti}) where {Bi,Tv,Ti}
+    JA,VA = colvals(A),nonzeros(A)
+    p,q = size(A)
+    count_occurrences!(IAt,JA)
+    counts_to_ptrs!(IAt)
+    shift_by_one!(IAt)
+    for i in 1:p
+        for jp in nzrange(A,i)
+            j = JA[jp]
+            jpt = IAt[j+1]
+            JAt[jpt] = i
+            VAt[jpt] = VA[jp]
+            IAt[j+1] = jpt+1
+        end
+    end
+    IAt[1] = 1
+    SparseMatrixCSR{Bi}(q,p,IAt,JAt,VAt)
+end
+
+# retranspose At back into A
+function halfperm!(A::SparseMatrixCSR{Bi,Tv,Ti},At::SparseMatrixCSR{Bi,Tv,Ti}) where {Bi,Tv,Ti}
+    IA,JA,VA = A.rowptr,colvals(A),nonzeros(A)
+    JAt,VAt = colvals(At),nonzeros(At)
+    p,q = size(At)
+    shift_by_one!(IA) # pointer to row 1 must be located at IA[2], row 2 at IA[3] etc.
+    IA[1] = 1
+    for i in 1:p
+        for jpt in nzrange(At,i)
+            j = JAt[jpt]
+            jp = IA[j+1]
+            JA[jp] = i
+            VA[jp] = VAt[jpt]
+            IA[j+1] = jp+1
+        end
+    end
+    At
+end
+
+function halfperm!(A::SparseMatrixCSC,At::SparseMatrixCSC)
+    halfperm!(ascsr(A),ascsr(At))
+    A
+end
+
+function halfperm(A::SparseMatrixCSC)
+    At = halfperm(ascsr(A))
+    ascsc(At)
+end
+
+function count_occurrences!(v1::AbstractVector{<:Integer},v2::AbstractVector{<:Integer};set_zero=true)
+    if set_zero
+        v1 .= 0
+    end
+    foreach(i->v1[i]+=1,v2)
+    v1
+end
+
+# shift all entries one element to the right in-place. Not circular.
+function shift_by_one!(v)
+    l = length(v)
+    prev = v[1]
+    tmp = prev
+    for i in 1:l-1
+        tmp = v[i+1]
+        v[i+1] = prev
+        prev = tmp
+    end
+end
+
+function counts_to_ptrs!(v)
+    l = length(v)
+    v[1] += 1
+    foreach(i->v[i]+=v[i-1],2:l)
+    shift_by_one!(v)
+    v[1] = 1
+end
+
+function symbolic_halfperm(A::SparseMatrixCSR)
+    q = size(A,2)
+    JA = colvals(A)
+    IAt,JAt = similar(A.rowptr,q+1),similar(JA)
+    symbolic_halfperm!(IAt,JAt,A)
+end
+
+# transpose A into At using vectors IAt,JAt, and VAt
+function symbolic_halfperm!(IAt,JAt,A::SparseMatrixCSR)
+    JA= colvals(A)
+    p,q = size(A)
+    count_occurrences!(IAt,JA)
+    counts_to_ptrs!(IAt)
+    shift_by_one!(IAt)
+    for i in 1:p
+        for jp in nzrange(A,i)
+            j = JA[jp]
+            jpt = IAt[j+1]
+            JAt[jpt] = i
+            IAt[j+1] = jpt+1
+        end
+    end
+    IAt[1] = 1
+    JaggedArray(JAt,IAt)
+end
+
+# transpose A into At using vectors IAt,JAt, and VAt
+function symbolic_halfperm!(JAt,IAt,A::SparseMatrixCSC)
+    symbolic_halfperm!(JAt,IAt,ascsr(A))
+end
+
+function symbolic_halfperm(A::SparseMatrixCSC)
+    symbolic_halfperm(ascsr(A))
+end
+
+# retranspose At back into A
+function symbolic_halfperm!(A::SparseMatrixCSR,At::JaggedArray)
+    IA,JA = pointer_array(A),index_array(A)
+    JAt = At.data
+    # p = size(A,1)
+    shift_by_one!(IA) # pointer to row 1 must be located at IA[2], row 2 at IA[3] etc.
+    IA[1] = 1
+    for i in 1:size(A,2)
+        for jpt in jagged_range(At,i)
+            j = JAt[jpt]
+            jp = IA[j+1]
+            JA[jp] = i
+            IA[j+1] = jp+1
+        end
+    end
+    A
+end
+
+# retranspose At back into A
+function symbolic_halfperm!(A::SparseMatrixCSC,At::JaggedArray)
+    symbolic_halfperm!(ascsr(A),At)
+    A
+end
