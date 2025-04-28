@@ -10,6 +10,7 @@ import MPI
 import IterativeSolvers
 import Distances
 using BlockArrays
+using Adapt
 
 export length_to_ptrs!
 export rewind_ptrs!
@@ -195,4 +196,5 @@ export nullspace_linear_elasticity!
 export near_nullspace_linear_elasticity
 include("gallery.jl")
 
+include("adapt.jl")
 end # module
