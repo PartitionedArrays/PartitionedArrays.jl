@@ -4,6 +4,7 @@ authors = ["Francesc Verdugo <f.verdugo.rojano@vu.nl> and contributors"]
 version = "0.5.10"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
 CircularArrays = "7a955b69-7140-5f4e-a0ed-f168c5e2e749"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
@@ -18,6 +19,7 @@ SparseMatricesCSR = "a0a7dd2c-ebf4-11e9-1f05-cf50bc540ca1"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+Adapt = "4.3.0"
 BlockArrays = "0.16, 1"
 CircularArrays = "1"
 Distances = "0.10"
