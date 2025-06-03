@@ -50,3 +50,43 @@ function Adapt.adapt_structure(to,v::PSparseMatrix)
     row_par = v.row_partition
     PSparseMatrix(matrix_partition,row_par,col_par,v.assembled)
 end
+
+function Adapt.adapt_structure(to,v::PVector)
+    new_local_values = map(local_values(v)) do myvals
+         Adapt.adapt_structure(to,myvals)
+    end
+    new_cache = Adapt.adapt_structure(to,v.cache)
+    new_v = PVector(new_local_values,v.index_partition, new_cache)
+    new_v
+end
+
+function Adapt.adapt_structure(to, cache::SplitVectorAssemblyCache)
+    # Adapt all the components
+    neighbors_snd =  cache.neighbors_snd
+    neighbors_rcv =  cache.neighbors_rcv
+    buffer_snd = map(cache.buffer_snd) do ja
+        Adapt.adapt_structure(to, ja)
+    end
+    buffer_rcv = map(cache.buffer_rcv) do ja
+        Adapt.adapt_structure(to, ja)
+    end
+    exchange_setup =  cache.exchange_setup
+    ghost_indices_snd = map(cache.ghost_indices_snd) do ja
+        Adapt.adapt_structure(to, ja)
+    end
+    own_indices_rcv = map(cache.own_indices_rcv) do ja
+        Adapt.adapt_structure(to, ja)
+    end
+
+    # Create new cache with adapted components
+    SplitVectorAssemblyCache(
+        neighbors_snd,
+        neighbors_rcv,
+        ghost_indices_snd,
+        own_indices_rcv,
+        buffer_snd,
+        buffer_rcv,
+        exchange_setup,
+        false
+    )
+end

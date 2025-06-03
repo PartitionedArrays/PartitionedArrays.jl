@@ -14,8 +14,8 @@ function Adapt.adapt_storage(::Type{<:FakeCuVector},x::AbstractArray)
 end
 
 function adapt_tests(distribute)
-
-    rank = distribute(LinearIndices((2,2)))
+    parts_per_dir = (2,2)
+    rank = distribute(LinearIndices(parts_per_dir)
     
     a = [[1,2],[3,4,5],Int[],[3,4]]
     b = JaggedArray(a)
@@ -61,4 +61,14 @@ function adapt_tests(distribute)
         @test typeof(val_b) == FakeCuVector{typeof(val_a)}
         @test val_b.vector == val_a
     end
+
+    p = prod(parts_per_dir)
+    ranks = distribute(LinearIndices((p,)))
+    nodes_per_dir = map(i->2*i,parts_per_dir)
+    args = laplacian_fdm(nodes_per_dir,parts_per_dir,ranks)
+    A = psparse(args...) |> fetch
+    Adapt.adapt(FakeCuVector, A)
+    b = pzeros(axes(A, 2), split_format=true)
+    Adapt.adapt(FakeCuVector, b)
+        
 end
