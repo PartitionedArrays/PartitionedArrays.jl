@@ -1,6 +1,30 @@
 
 function local_values end
 
+function reduce_for_distance(d, partials, init)
+    reduce((i, j) -> Distances.eval_reduce(d, i, j), partials; init)
+end
+
+reduce_for_distance(::Distances.Chebyshev, partials, init) =
+    reduce(max, partials; init)
+
+for T in (Distances.Euclidean,
+          Distances.SqEuclidean,
+          Distances.PeriodicEuclidean,
+          Distances.Cityblock,
+          Distances.TotalVariation,
+          Distances.Minkowski,
+          Distances.Hamming,
+          Distances.ChiSqDist,
+          Distances.KLDivergence,
+          Distances.GenKLDivergence)
+    # all Distances.metrics except Jaccard, RogersTanimoto, CosineDist,
+    # RenyiDivergence, BrayCurtis, SpanNormDist, since these either operate with
+    # tuples or have a complex reduction logic.
+    @eval reduce_for_distance(::$(T), partials, init) =
+        reduce(+, partials; init)
+end
+
 function own_values end
 
 function ghost_values end
@@ -834,9 +858,8 @@ for M in Distances.metrics
                     return s
                 end
             end
-            s = reduce((i,j)->Distances.eval_reduce(d,i,j),
-                       partials,
-                       init=Distances.eval_start(d, a, b))
+            init_val = Distances.eval_start(d, a, b)
+            s = reduce_for_distance(d, partials, init_val)
             Distances.eval_end(d,s)
         end
     end

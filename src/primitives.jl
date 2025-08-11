@@ -601,14 +601,11 @@ function ExchangeGraph_impl_with_neighbors(snd_ids,neighbors::ExchangeGraph)
         is_included_all=map(snd_ids_a, snd_ids_b) do snd_ids_a, snd_ids_b
             all(i->i in snd_ids_b,snd_ids_a)
         end
-        result=false
-        and(a,b)=a && b
-        is_included_all=reduction(and,is_included_all,destination=:all,init=one(eltype(is_included_all)))
-        map(is_included_all) do is_included_all
-            result = is_included_all
-        end
-        result
-    end 
+        # perform a global AND using built-in & operator (static MPI-op)
+        is_included_all = reduction(&, is_included_all; destination=:all, init=one(eltype(is_included_all)))
+        # extract the single boolean result
+        collect(is_included_all)[1]
+    end
     @boundscheck is_included(snd_ids,neighbors.snd) || error("snd_ids must be a subset of neighbors.snd")
     rank = linear_indices(snd_ids)
     # Tell the neighbors whether I want to send to them
