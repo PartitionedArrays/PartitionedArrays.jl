@@ -11,6 +11,10 @@ import IterativeSolvers
 import Distances
 using BlockArrays
 using Adapt
+using Preferences
+
+export set_default_find_rcv_ids
+include("preferences.jl")
 
 export length_to_ptrs!
 export rewind_ptrs!

@@ -660,9 +660,14 @@ end
 Issend(data, dest::Integer, tag::Integer, comm::MPI.Comm, req=MPI.Request()) =
     Issend(MPI.Buffer_send(data), dest, tag, comm, req)
 
-
 function default_find_rcv_ids(::MPIArray)
-    find_rcv_ids_gather_scatter
+    @static if default_find_rcv_ids_algorithm == "gather_scatter"
+        find_rcv_ids_gather_scatter
+    elseif default_find_rcv_ids_algorithm == "ibarrier"
+        find_rcv_ids_ibarrier
+    else
+        error("Unknown algorithm: $(default_find_rcv_ids_algorithm)")
+    end
 end
 
 """
