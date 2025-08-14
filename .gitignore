@@ -5,6 +5,7 @@
 *.jl.mem
 .DS_Store
 Manifest.toml
+LocalPreferences.toml
 docs/build/
 tmp/
 docs/src/examples.md
