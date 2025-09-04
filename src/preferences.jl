@@ -18,7 +18,7 @@ function set_default_find_rcv_ids(algorithm::String)
 
     # Set it in our runtime values, as well as saving it to disk
     @set_preferences!("default_find_rcv_ids" => algorithm)
-    @info("New deafult algorithm set; restart your Julia session for this change to take effect!")
+    @info("New default algorithm set; restart your Julia session for this change to take effect!")
 end
 
 @static if VERSION >= v"1.6"
