@@ -5,9 +5,11 @@
 *.jl.mem
 .DS_Store
 Manifest.toml
+LocalPreferences.toml
 docs/build/
 tmp/
 docs/src/examples.md
+docs/src/jacobi_tutorial.md
 
 HPCG/src/results/
 

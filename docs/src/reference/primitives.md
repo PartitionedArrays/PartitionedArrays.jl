@@ -8,6 +8,7 @@ gather
 gather!
 allocate_gather
 ```
+
 ## Scatter
 
 ```@docs
@@ -45,7 +46,8 @@ ExchangeGraph(snd)
 exchange
 exchange!
 allocate_exchange
+default_find_rcv_ids
+set_default_find_rcv_ids
+find_rcv_ids_gather_scatter
+find_rcv_ids_ibarrier
 ```
-
-
-

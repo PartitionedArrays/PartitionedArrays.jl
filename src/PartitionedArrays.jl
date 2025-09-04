@@ -11,6 +11,10 @@ import IterativeSolvers
 import Distances
 using BlockArrays
 using Adapt
+using Preferences
+
+export set_default_find_rcv_ids
+include("preferences.jl")
 
 export length_to_ptrs!
 export rewind_ptrs!
@@ -54,6 +58,7 @@ export ExchangeGraph
 export exchange
 export exchange!
 export allocate_exchange
+export default_find_rcv_ids
 export find_rcv_ids_gather_scatter
 export setup_non_blocking_reduction
 export non_blocking_reduction

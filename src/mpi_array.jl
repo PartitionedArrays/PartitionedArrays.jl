@@ -660,14 +660,23 @@ end
 Issend(data, dest::Integer, tag::Integer, comm::MPI.Comm, req=MPI.Request()) =
     Issend(MPI.Buffer_send(data), dest, tag, comm, req)
 
-
 function default_find_rcv_ids(::MPIArray)
-    find_rcv_ids_gather_scatter
+    @static if default_find_rcv_ids_algorithm == "gather_scatter"
+        find_rcv_ids_gather_scatter
+    elseif default_find_rcv_ids_algorithm == "ibarrier"
+        find_rcv_ids_ibarrier
+    else
+        error("Unknown algorithm: $(default_find_rcv_ids_algorithm)")
+    end
 end
 
 """
- Implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476
- The algorithm's complexity is claimed to be O(log(p))
+    find_rcv_ids_ibarrier(snd_ids::MPIArray)
+
+Finds the `rcv` side of an `ExchangeGraph` out of the `snd` side information.
+
+This strategy implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476.
+The algorithm's complexity is claimed to be O(log(p)).
 """
 function find_rcv_ids_ibarrier(snd_ids::MPIArray{<:AbstractVector{T}}) where T
     comm = snd_ids.comm
