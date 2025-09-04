@@ -58,6 +58,7 @@ export ExchangeGraph
 export exchange
 export exchange!
 export allocate_exchange
+export default_find_rcv_ids
 export find_rcv_ids_gather_scatter
 export setup_non_blocking_reduction
 export non_blocking_reduction

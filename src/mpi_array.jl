@@ -671,8 +671,12 @@ function default_find_rcv_ids(::MPIArray)
 end
 
 """
- Implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476
- The algorithm's complexity is claimed to be O(log(p))
+    find_rcv_ids_ibarrier(snd_ids::MPIArray)
+
+Finds the `rcv` side of an `ExchangeGraph` out of the `snd` side information.
+
+This strategy implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476.
+The algorithm's complexity is claimed to be O(log(p)).
 """
 function find_rcv_ids_ibarrier(snd_ids::MPIArray{<:AbstractVector{T}}) where T
     comm = snd_ids.comm

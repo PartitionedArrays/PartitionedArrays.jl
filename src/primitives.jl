@@ -762,6 +762,13 @@ function Base.show(io::IO,k::MIME"text/plain",data::ExchangeGraph)
     println(io,typeof(data)," with $(length(data.snd)) nodes")
 end
 
+"""
+    default_find_rcv_ids(::AbstractArray)
+
+Provides a default function to find the `rcv` side of an
+`ExchangeGraph` out of the `snd` side information.
+Its behaviour can be statically changed using [`set_default_find_rcv_ids`](@ref).
+"""
 function default_find_rcv_ids(::AbstractArray)
     find_rcv_ids_gather_scatter
 end 
@@ -779,10 +786,11 @@ are set to `snd`. Otherwise, either the optional `neighbors` or
 `neighbors` is also an `ExchangeGraph`
 that contains a super set of the outgoing and incoming neighbors
 associated with `snd`. It is used to find the incoming neighbors `rcv`
-efficiently. If `neighbors` are not provided, then `find_rcv_ids` 
+efficiently. If `neighbors` are not provided, then `find_rcv_ids`
 is used (either the user-provided or a default one).
 `find_rcv_ids` is a function that implements an algorithm to find the 
-rcv side of the exchange graph out of the snd side information.
+rcv side of the exchange graph out of the snd side information. It 
+defaults to [`default_find_rcv_ids`](@ref).
 """
 function ExchangeGraph(snd;
                        rcv=nothing,
@@ -836,8 +844,14 @@ function ExchangeGraph_impl_with_find_rcv_ids(snd_ids::AbstractArray,find_rcv_id
     ExchangeGraph(snd_ids,rcv_ids)
 end
 
-# This strategy gathers the communication graph into one process
-# and then scatters back the receivers
+"""
+    find_rcv_ids_gather_scatter(snd_ids::AbstractArray)
+
+Finds the `rcv` side of an `ExchangeGraph` out of the `snd` side information.
+
+This strategy gathers the communication graph into one process
+and then scatters back the receivers.
+"""
 function find_rcv_ids_gather_scatter(snd_ids::AbstractArray)
     snd_ids_main = gather(snd_ids)
     rcv_ids_main = map(snd_ids_main) do snd_ids_main

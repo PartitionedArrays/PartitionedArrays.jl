@@ -5,6 +5,7 @@
 ```@autodocs
 Modules = [PartitionedArrays]
 Pages = ["mpi_array.jl"]
+Filter = t -> string(t) != "find_rcv_ids_ibarrier"
 ```
 
 ## Debug

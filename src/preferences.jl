@@ -5,9 +5,9 @@
 Sets the default algorithm to discover communication neighbors. The available algorithms are:
 
 - `gather_scatter`: Gathers neighbors in a single processor, builds the communications graph 
-  and then scatters the information back to all processors.
+  and then scatters the information back to all processors. See [`find_rcv_ids_gather_scatter`](@ref).
 
-- `ibarrier`: Implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476
+- `ibarrier`: Implements Alg. 2 in https://dl.acm.org/doi/10.1145/1837853.1693476. See [`find_rcv_ids_ibarrier`](@ref).
 
 Feature only available in Julia 1.6 and later due to restrictions from `Preferences.jl`.
 """
